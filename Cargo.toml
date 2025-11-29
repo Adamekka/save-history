@@ -1,0 +1,10 @@
+[package]
+name = "save-history"
+version = "0.1.0"
+edition = "2024"
+
+
+[dependencies]
+chrono = { version = "*", default-features = false, features = ["clock"] }
+clap = { version = "*", features = ["derive"] }
+notify = "4"
