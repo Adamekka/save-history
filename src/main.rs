@@ -81,6 +81,11 @@ fn main() {
                 if event.kind.is_access() {
                     continue;
                 }
+                // Skip events whose paths are all inside .git/; git writes there on every
+                // commit, which would otherwise re-trigger the loop and produce empty commits.
+                if event.paths.iter().all(|p| p.starts_with(&git_dir)) {
+                    continue;
+                }
 
                 let add_status = Command::new("git")
                     .args(["-C", cli.path.to_str().unwrap(), "add", "-A"])
@@ -106,8 +111,10 @@ fn main() {
                         "--quiet",
                     ])
                     .status();
+                // git diff --cached --quiet exits 0 = no changes, 1 = has changes, ≥2 = error.
+                // Treat only exit code 1 as "has changes"; errors must not be misread as staged changes.
                 let has_changes = match diff_status {
-                    Ok(status) => !status.success(),
+                    Ok(status) => status.code() == Some(1),
                     Err(e) => {
                         eprintln!("Failed to run git diff: {}", e);
                         false
