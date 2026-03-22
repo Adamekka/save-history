@@ -14,6 +14,9 @@ use std::sync::mpsc::channel;
 struct Cli {
     #[arg(value_name = "DIRECTORY")]
     path: PathBuf,
+
+    #[arg(long, help = "Push each successful auto-commit to the current remote")]
+    auto_push: bool,
 }
 
 fn main() {
@@ -139,6 +142,23 @@ fn main() {
                 match commit_status {
                     Ok(status) if status.success() => {
                         println!("Committed changes at {}", timestamp);
+
+                        if cli.auto_push {
+                            let push_status = Command::new("git")
+                                .args(["-C", cli.path.to_str().unwrap(), "push"])
+                                .status();
+                            match push_status {
+                                Ok(status) if status.success() => {
+                                    println!("Pushed changes at {}", timestamp);
+                                }
+                                Ok(status) => {
+                                    eprintln!("git push failed with status {}", status);
+                                }
+                                Err(e) => {
+                                    eprintln!("Failed to run git push: {}", e);
+                                }
+                            }
+                        }
                     }
                     Ok(_) => {
                         println!("git commit made no changes at {}", timestamp);
