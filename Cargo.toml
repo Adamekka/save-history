@@ -7,4 +7,4 @@ edition = "2024"
 [dependencies]
 chrono = { version = "0", default-features = false, features = ["clock"] }
 clap = { version = "4", features = ["derive"] }
-notify = "4"
+notify = "8"

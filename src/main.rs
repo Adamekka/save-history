@@ -1,10 +1,9 @@
 use chrono::Local;
 use clap::Parser;
-use notify::{DebouncedEvent, RecursiveMode, Watcher};
+use notify::{RecursiveMode, Watcher};
 use std::path::PathBuf;
 use std::process::Command;
 use std::sync::mpsc::channel;
-use std::time::Duration;
 
 #[derive(Parser)]
 #[command(
@@ -60,8 +59,8 @@ fn main() {
         }
     }
 
-    let (tx, rx) = channel();
-    let mut watcher = match notify::watcher(tx, Duration::from_secs(1)) {
+    let (tx, rx) = channel::<notify::Result<notify::Event>>();
+    let mut watcher = match notify::recommended_watcher(tx) {
         Ok(watcher) => watcher,
         Err(e) => {
             eprintln!("Failed to create filesystem watcher: {}", e);
@@ -77,9 +76,9 @@ fn main() {
 
     loop {
         match rx.recv() {
-            Ok(event) => {
-                if let DebouncedEvent::Error(ref err, _) = event {
-                    eprintln!("watch error: {}", err);
+            Ok(Ok(event)) => {
+                // Skip pure access (read) events - only writes, creates, and removes need committing.
+                if event.kind.is_access() {
                     continue;
                 }
 
@@ -141,6 +140,9 @@ fn main() {
                         eprintln!("Failed to run git commit: {}", e);
                     }
                 }
+            }
+            Ok(Err(e)) => {
+                eprintln!("watch error: {}", e);
             }
             Err(e) => {
                 eprintln!("watch channel error: {}", e);
